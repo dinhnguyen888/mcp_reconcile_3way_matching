@@ -23,7 +23,7 @@
                             Local AI on this computer scans the invoice. If a vendor bill with the same
                             number already exists, it will be opened; otherwise a draft bill is filled in.
                         </p>
-                        <field name="document" filename="file_name" widget="dropzone_binary" class="w-100 d-block"/>
+                        <field name="document" filename="file_name" widget="account_reconcile_dropzone_binary" class="w-100 d-block"/>
                         <field name="attachment_id" invisible="1"/>
                         <field name="import_batch_id" invisible="1"/>
                         <field name="file_name" invisible="1"/>

@@ -149,6 +149,6 @@ export const dropzoneBinaryField = {
     supportedTypes: ["binary"],
 };
 
-if (!registry.category("fields").contains("dropzone_binary")) {
-    registry.category("fields").add("dropzone_binary", dropzoneBinaryField);
+if (!registry.category("fields").contains("account_reconcile_dropzone_binary")) {
+    registry.category("fields").add("account_reconcile_dropzone_binary", dropzoneBinaryField);
 }
