@@ -1,0 +1,13 @@
+<odoo>
+    <record id="account_journal_dashboard_kanban_view_mcp" model="ir.ui.view">
+        <field name="name">account.journal.dashboard.kanban.mcp</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.account_journal_dashboard_kanban_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//t[@t-if=&quot;journal_type == 'purchase'&quot;]//widget[@name='account_file_uploader']" position="attributes">
+                <attribute name="name">account_reconcile_3way_mcp_file_uploader</attribute>
+                <attribute name="js_class">account_reconcile_3way_mcp_upload</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>
