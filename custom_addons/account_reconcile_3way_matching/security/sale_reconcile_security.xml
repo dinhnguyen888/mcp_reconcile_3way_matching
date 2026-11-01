@@ -1,1 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?><odoo><record id="rule_sale_match_company" model="ir.rule"><field name="name">Sales reconciliation matches by company</field><field name="model_id" ref="model_reconcile_sale_match"/><field name="domain_force">[('company_id', 'in', company_ids)]</field></record></odoo>

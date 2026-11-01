@@ -5,7 +5,8 @@ class ResCompany(models.Model):
     _inherit = "res.company"
 
     reconcile_block_unmatched_purchase_bills = fields.Boolean(
-        string="Block Vendor Bills Without Three-Way Match"
+        string="Block Vendor Bills Without Three-Way Match",
+        default=True,
     )
 
 

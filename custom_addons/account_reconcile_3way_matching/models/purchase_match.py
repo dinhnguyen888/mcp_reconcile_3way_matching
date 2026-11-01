@@ -32,6 +32,7 @@ class ReconcilePurchaseMatch(models.Model):
             ("within_tolerance", "Within Tolerance"),
             ("exception", "Exception"),
             ("approved", "Approved"),
+            ("posted", "Posted"),
         ],
         default="draft",
         required=True,
@@ -56,6 +57,7 @@ class ReconcilePurchaseMatch(models.Model):
         compute="_compute_totals", currency_field="currency_id"
     )
     exception_count = fields.Integer(compute="_compute_totals")
+    bill_state = fields.Selection(related="bill_id.state", string="Bill Status")
 
     _sql_constraints = [  # noqa: RUF012
         (
@@ -112,6 +114,106 @@ class ReconcilePurchaseMatch(models.Model):
     def _validate_match_source(self):
         if self.bill_id.move_type not in ("in_invoice", "in_refund"):
             raise UserError(_("Three-way matching is only available for vendor bills."))
+        if self.bill_id.state != "draft":
+            raise UserError(
+                _("Three-way matching can only be confirmed on a draft vendor bill.")
+            )
+
+    def action_confirm(self):
+        return self.action_compute()
+
+    def action_approve(self):
+        if self.filtered(lambda match: match.bill_id.state != "draft"):
+            raise UserError(_("Only exceptions on draft vendor bills can be approved."))
+        if self.filtered(lambda match: match.state != "exception"):
+            raise UserError(_("Only a match with exceptions can be approved."))
+        return super().action_approve()
+
+    def _source_attachment(self):
+        self.ensure_one()
+        attachment = self.bill_id.message_main_attachment_id
+        if attachment:
+            return attachment
+        return self.env["ir.attachment"].search(
+            [
+                ("res_model", "=", "account.move"),
+                ("res_id", "=", self.bill_id.id),
+                (
+                    "mimetype",
+                    "in",
+                    ["application/pdf", "image/png", "image/jpeg", "image/webp"],
+                ),
+            ],
+            order="id desc",
+            limit=1,
+        )
+
+    def get_workspace_data(self):
+        self.ensure_one()
+        self.check_access("read")
+        attachment = self._source_attachment()
+        orders = self.purchase_order_ids
+        pickings = self.picking_ids
+        return {
+            "id": self.id,
+            "name": self.name,
+            "state": self.state,
+            "bill_state": self.bill_id.state,
+            "bill": {
+                "id": self.bill_id.id,
+                "name": self.bill_id.display_name,
+                "ref": self.bill_id.ref or "",
+                "vendor": self.partner_id.display_name,
+                "invoice_date": str(self.bill_id.invoice_date or ""),
+                "currency": self.currency_id.symbol,
+                "amount_total": self.bill_id.amount_total,
+            },
+            "attachment": {
+                "id": attachment.id,
+                "name": attachment.name,
+                "mimetype": attachment.mimetype or "",
+                "url": f"/web/content/{attachment.id}?download=false"
+                if attachment
+                else "",
+            },
+            "orders": [
+                {"id": order.id, "name": order.name, "state": order.state}
+                for order in orders
+            ],
+            "receipts": [
+                {"id": picking.id, "name": picking.name, "state": picking.state}
+                for picking in pickings
+            ],
+            "summary": {
+                "expected": self.expected_amount,
+                "actual": self.actual_amount,
+                "variance": self.variance_amount,
+                "exceptions": self.exception_count,
+            },
+            "lines": [
+                {
+                    "id": line.id,
+                    "product": line.product_id.display_name,
+                    "ordered": line.ordered_quantity,
+                    "received": line.received_quantity,
+                    "billed": line.billed_quantity,
+                    "po_price": line.expected_price_unit,
+                    "bill_price": line.actual_price_unit,
+                    "variance": line.variance_amount,
+                    "result": line.result,
+                }
+                for line in self.line_ids
+            ],
+        }
+
+    def action_open_workspace(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.client",
+            "tag": "purchase_3way_workspace",
+            "name": _("Three-Way Matching"),
+            "params": {"match_id": self.id},
+        }
 
     def _prepare_match_line_values(self):
         self.ensure_one()
@@ -244,15 +346,49 @@ class AccountMove(models.Model):
     purchase_reconcile_match_id = fields.Many2one(
         "reconcile.purchase.match", copy=False
     )
+    purchase_match_state = fields.Selection(
+        [
+            ("draft", "Draft"),
+            ("matched", "Matched"),
+            ("within_tolerance", "Within Tolerance"),
+            ("exception", "Exception"),
+            ("approved", "Approved"),
+            ("posted", "Posted"),
+        ],
+        compute="_compute_purchase_match_state",
+        string="3-Way Match",
+    )
+
+    @api.depends("purchase_reconcile_match_id.state", "state")
+    def _compute_purchase_match_state(self):
+        for move in self:
+            move.purchase_match_state = (
+                move.purchase_reconcile_match_id.state
+                if move.purchase_reconcile_match_id
+                else "draft"
+            )
+
+    def _ensure_purchase_reconcile_match(self):
+        self.ensure_one()
+        if self.move_type not in ("in_invoice", "in_refund"):
+            raise UserError(_("Three-way matching is only available for vendor bills."))
+        match = self.purchase_reconcile_match_id
+        if not match:
+            match = self.env["reconcile.purchase.match"].create(
+                {
+                    "name": _("Three-Way Match - %s") % self.display_name,
+                    "bill_id": self.id,
+                }
+            )
+            self.purchase_reconcile_match_id = match
+        return match
 
     def action_open_purchase_reconcile_match(self):
-        return self._open_reconcile_match(
-            match_field="purchase_reconcile_match_id",
-            match_model="reconcile.purchase.match",
-            source_field="bill_id",
-            match_name=_("Three-Way Match - %s"),
-            action_name=_("Purchase Three-Way Match"),
-        )
+        self.ensure_one()
+        match = self._ensure_purchase_reconcile_match()
+        if self.state == "draft" and match.state == "draft":
+            match.action_compute()
+        return match.action_open_workspace()
 
     def action_post(self):
         for move in self.filtered(
@@ -260,7 +396,13 @@ class AccountMove(models.Model):
         ):
             if move.company_id.reconcile_block_unmatched_purchase_bills:
                 match = move.purchase_reconcile_match_id
-                if not match or match.state not in (
+                if not match:
+                    raise UserError(
+                        _("Complete the purchase three-way match before posting.")
+                    )
+                if match.state != "approved":
+                    match.action_compute()
+                if match.state not in (
                     "matched",
                     "within_tolerance",
                     "approved",
@@ -270,7 +412,15 @@ class AccountMove(models.Model):
                             "Complete and approve the purchase three-way match before posting."
                         )
                     )
-        return super().action_post()
+        result = super().action_post()
+        self.filtered(
+            lambda move: (
+                move.move_type in ("in_invoice", "in_refund")
+                and move.purchase_reconcile_match_id
+                and move.state == "posted"
+            )
+        ).mapped("purchase_reconcile_match_id").write({"state": "posted"})
+        return result
 
 
 class StockPicking(models.Model):

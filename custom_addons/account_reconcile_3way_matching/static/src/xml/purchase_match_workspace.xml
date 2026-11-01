@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="account_reconcile_3way_matching.PurchaseMatchWorkspace">
+        <div class="o_purchase_match_workspace">
+            <t t-if="state.loading">
+                <div class="o_match_loading">Loading matching workspace…</div>
+            </t>
+            <t t-else="">
+                <header class="o_match_header">
+                    <div>
+                        <div class="o_match_eyebrow">Vendor bill control</div>
+                        <h1><t t-esc="state.data.bill.name"/></h1>
+                        <div class="o_match_meta">
+                            <span><t t-esc="state.data.bill.vendor"/></span>
+                            <span><t t-esc="state.data.bill.ref || 'No supplier reference'"/></span>
+                            <span><t t-esc="state.data.bill.invoice_date"/></span>
+                        </div>
+                    </div>
+                    <div class="o_match_actions">
+                        <span class="o_match_state" t-att-data-state="state.data.state"><t t-esc="state.data.state"/></span>
+                        <button t-if="state.data.bill_state === 'draft'" class="btn btn-dark" t-on-click="confirm">Confirm comparison</button>
+                        <button t-if="state.data.state === 'exception'" class="btn btn-outline-dark" t-on-click="approve">Approve exception</button>
+                    </div>
+                </header>
+
+                <div class="o_match_summary">
+                    <div><span>PO / Receipt value</span><strong><t t-esc="formatMoney(state.data.summary.expected)"/> <small><t t-esc="state.data.bill.currency"/></small></strong></div>
+                    <div><span>Vendor bill value</span><strong><t t-esc="formatMoney(state.data.summary.actual)"/> <small><t t-esc="state.data.bill.currency"/></small></strong></div>
+                    <div t-att-class="state.data.summary.variance ? 'is-exception' : ''"><span>Variance</span><strong><t t-esc="formatMoney(state.data.summary.variance)"/> <small><t t-esc="state.data.bill.currency"/></small></strong></div>
+                    <div><span>Exceptions</span><strong><t t-esc="state.data.summary.exceptions"/></strong></div>
+                </div>
+
+                <main class="o_match_split">
+                    <section class="o_match_document">
+                        <div class="o_match_section_header"><h2>Supplier document</h2><span><t t-esc="state.data.attachment.name || 'No source attached'"/></span></div>
+                        <t t-if="state.data.attachment.url">
+                            <iframe t-if="state.data.attachment.mimetype === 'application/pdf'" t-att-src="state.data.attachment.url" title="Supplier invoice document"/>
+                            <img t-else="" t-att-src="state.data.attachment.url" alt="Supplier invoice document"/>
+                        </t>
+                        <div t-else="" class="o_match_empty">Attach the supplier PDF or image to verify the source document.</div>
+                    </section>
+
+                    <section class="o_match_evidence">
+                        <div class="o_match_section_header"><h2>Three-way evidence</h2><span>PO · Receipt · Vendor Bill</span></div>
+                        <div class="o_match_links">
+                            <button class="btn btn-light" t-on-click="() => openModel('account.move', state.data.bill.id)">Vendor Bill · <t t-esc="state.data.bill.name"/></button>
+                            <button t-foreach="state.data.orders" t-as="order" t-key="order.id" class="btn btn-light" t-on-click="() => openModel('purchase.order', order.id)">PO · <t t-esc="order.name"/></button>
+                            <button t-foreach="state.data.receipts" t-as="receipt" t-key="receipt.id" class="btn btn-light" t-on-click="() => openModel('stock.picking', receipt.id)">Receipt · <t t-esc="receipt.name"/></button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table o_match_table">
+                                <thead><tr><th>Product</th><th class="text-end">Ordered</th><th class="text-end">Received</th><th class="text-end">Billed</th><th class="text-end">PO price</th><th class="text-end">Bill price</th><th>Result</th></tr></thead>
+                                <tbody>
+                                    <tr t-foreach="state.data.lines" t-as="line" t-key="line.id" t-att-class="line.result !== 'matched' ? 'is-exception' : ''">
+                                        <td><t t-esc="line.product"/></td><td class="text-end"><t t-esc="line.ordered"/></td><td class="text-end"><t t-esc="line.received"/></td><td class="text-end"><t t-esc="line.billed"/></td><td class="text-end"><t t-esc="formatMoney(line.po_price)"/></td><td class="text-end"><t t-esc="formatMoney(line.bill_price)"/></td><td><span class="o_result"><t t-esc="line.result"/></span></td>
+                                    </tr>
+                                    <tr t-if="!state.data.lines.length"><td colspan="7" class="o_match_empty">No comparable invoice lines were found.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </main>
+            </t>
+        </div>
+    </t>
+</templates>
