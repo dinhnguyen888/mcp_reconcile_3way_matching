@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_reconcile_sale_match_user,reconcile.sale.match.user,model_reconcile_sale_match,account_reconcile_mcp_support.group_reconcile_user,1,1,1,0
+access_reconcile_sale_match_line_user,reconcile.sale.match.line.user,model_reconcile_sale_match_line,account_reconcile_mcp_support.group_reconcile_user,1,1,1,0
+access_reconcile_purchase_match_user,reconcile.purchase.match.user,model_reconcile_purchase_match,account_reconcile_mcp_support.group_reconcile_user,1,1,1,0
+access_reconcile_purchase_match_line_user,reconcile.purchase.match.line.user,model_reconcile_purchase_match_line,account_reconcile_mcp_support.group_reconcile_user,1,1,1,0

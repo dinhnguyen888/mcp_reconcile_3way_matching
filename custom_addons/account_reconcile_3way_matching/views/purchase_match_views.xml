@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_purchase_match_list" model="ir.ui.view">
+        <field name="name">reconcile.purchase.match.list</field>
+        <field name="model">reconcile.purchase.match</field>
+        <field name="arch" type="xml"><list><field name="name"/><field name="bill_id"/><field name="partner_id"/><field name="variance_amount"/><field name="exception_count"/><field name="state" widget="badge"/><field name="case_id"/></list></field>
+    </record>
+    <record id="view_purchase_match_form" model="ir.ui.view">
+        <field name="name">reconcile.purchase.match.form</field><field name="model">reconcile.purchase.match</field>
+        <field name="arch" type="xml"><form string="Purchase Three-Way Match"><header><button name="action_compute" type="object" string="Recompute" class="btn-primary"/><button name="action_create_case" type="object" string="Create Case" invisible="case_id or state not in ('exception', 'within_tolerance')"/><button name="action_approve" type="object" string="Approve" groups="account_reconcile_mcp_support.group_reconcile_approver" invisible="state not in ('exception', 'within_tolerance')"/><field name="state" widget="statusbar"/></header><sheet><group><group><field name="name"/><field name="bill_id"/><field name="company_id"/><field name="partner_id"/></group><group><field name="expected_amount"/><field name="actual_amount"/><field name="variance_amount"/><field name="exception_count"/><field name="case_id"/></group></group><field name="line_ids"><list><field name="product_id"/><field name="purchase_line_id"/><field name="ordered_quantity"/><field name="received_quantity"/><field name="previously_billed_quantity"/><field name="allowed_quantity"/><field name="billed_quantity"/><field name="expected_price_unit"/><field name="actual_price_unit"/><field name="variance_amount"/><field name="result" widget="badge"/></list></field></sheet><chatter/></form></field>
+    </record>
+    <record id="action_purchase_matches" model="ir.actions.act_window"><field name="name">Purchase Matches</field><field name="res_model">reconcile.purchase.match</field><field name="view_mode">list,form</field></record>
+    <record id="view_move_form_purchase_match" model="ir.ui.view"><field name="name">account.move.form.purchase.match</field><field name="model">account.move</field><field name="inherit_id" ref="account.view_move_form"/><field name="arch" type="xml"><xpath expr="//header" position="inside"><button name="action_open_purchase_reconcile_match" type="object" string="Three-Way Match" class="btn-secondary" invisible="move_type not in ('in_invoice', 'in_refund')" groups="account_reconcile_mcp_support.group_reconcile_user"/></xpath></field></record>
+    <menuitem id="menu_purchase_matches" name="Purchase Matches" parent="account_reconcile_mcp_support.menu_reconcile_root" action="action_purchase_matches" sequence="40"/>
+</odoo>
