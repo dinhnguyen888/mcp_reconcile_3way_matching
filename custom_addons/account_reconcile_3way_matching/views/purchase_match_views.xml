@@ -3,13 +3,62 @@
     <record id="view_purchase_match_list" model="ir.ui.view">
         <field name="name">reconcile.purchase.match.list</field>
         <field name="model">reconcile.purchase.match</field>
-        <field name="arch" type="xml"><list><field name="name"/><field name="bill_id"/><field name="partner_id"/><field name="variance_amount"/><field name="exception_count"/><field name="state" widget="badge"/><field name="case_id"/></list></field>
+        <field name="arch" type="xml">
+            <list decoration-danger="state == 'exception'" decoration-success="state == 'matched'">
+                <field name="name"/><field name="bill_id"/><field name="partner_id"/>
+                <field name="picking_count" string="Receipts"/><field name="variance_amount"/>
+                <field name="exception_count"/><field name="state" widget="badge"/>
+            </list>
+        </field>
     </record>
     <record id="view_purchase_match_form" model="ir.ui.view">
-        <field name="name">reconcile.purchase.match.form</field><field name="model">reconcile.purchase.match</field>
-        <field name="arch" type="xml"><form string="Purchase Three-Way Match"><header><button name="action_compute" type="object" string="Recompute" class="btn-primary"/><button name="action_create_case" type="object" string="Create Case" invisible="case_id or state not in ('exception', 'within_tolerance')"/><button name="action_approve" type="object" string="Approve" groups="account_reconcile_mcp_support.group_reconcile_approver" invisible="state not in ('exception', 'within_tolerance')"/><field name="state" widget="statusbar"/></header><sheet><group><group><field name="name"/><field name="bill_id"/><field name="company_id"/><field name="partner_id"/></group><group><field name="expected_amount"/><field name="actual_amount"/><field name="variance_amount"/><field name="exception_count"/><field name="case_id"/></group></group><field name="line_ids"><list><field name="product_id"/><field name="purchase_line_id"/><field name="ordered_quantity"/><field name="received_quantity"/><field name="previously_billed_quantity"/><field name="allowed_quantity"/><field name="billed_quantity"/><field name="expected_price_unit"/><field name="actual_price_unit"/><field name="variance_amount"/><field name="result" widget="badge"/></list></field></sheet><chatter/></form></field>
+        <field name="name">reconcile.purchase.match.form</field>
+        <field name="model">reconcile.purchase.match</field>
+        <field name="arch" type="xml">
+            <form string="Bill / Purchase Order / Receipt Comparison">
+                <header>
+                    <button name="action_compute" type="object" string="Refresh Comparison" class="btn-primary"/>
+                    <button name="action_approve" type="object" string="Accept Exception" groups="purchase.group_purchase_manager" invisible="state not in ('exception', 'within_tolerance')"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_purchase_orders" type="object" class="oe_stat_button" icon="fa-shopping-cart" invisible="purchase_order_count == 0"><field name="purchase_order_count" widget="statinfo" string="Purchase Orders"/></button>
+                        <button name="action_open_receipts" type="object" class="oe_stat_button" icon="fa-truck" invisible="picking_count == 0"><field name="picking_count" widget="statinfo" string="Receipts"/></button>
+                    </div>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group col="2">
+                        <group string="Vendor Bill">
+                            <field name="bill_id"/><field name="partner_id"/><field name="company_id" groups="base.group_multi_company"/><field name="actual_amount" string="Bill Amount"/>
+                        </group>
+                        <group string="Purchase Order &amp; Receipt">
+                            <field name="purchase_order_ids" widget="many2many_tags"/><field name="picking_ids" widget="many2many_tags"/>
+                            <field name="expected_amount" string="Expected from Receipts"/><field name="variance_amount"/><field name="exception_count"/>
+                        </group>
+                    </group>
+                    <separator string="Line-by-line comparison"/>
+                    <field name="line_ids" nolabel="1">
+                        <list decoration-success="result == 'matched'" decoration-danger="result not in ('matched', 'within_tolerance')">
+                            <field name="product_id"/><field name="invoice_line_id" string="Bill Line" optional="show"/><field name="purchase_line_id" string="PO Line"/>
+                            <field name="ordered_quantity" string="Ordered"/><field name="received_quantity" string="Received"/>
+                            <field name="previously_billed_quantity" string="Previously Billed" optional="hide"/><field name="allowed_quantity" string="Available to Bill"/>
+                            <field name="billed_quantity" string="On This Bill"/><field name="expected_price_unit" string="PO Price"/>
+                            <field name="actual_price_unit" string="Bill Price"/><field name="variance_amount" string="Variance"/><field name="result" widget="badge"/>
+                        </list>
+                    </field>
+                </sheet><chatter/>
+            </form>
+        </field>
     </record>
     <record id="action_purchase_matches" model="ir.actions.act_window"><field name="name">Purchase Matches</field><field name="res_model">reconcile.purchase.match</field><field name="view_mode">list,form</field></record>
-    <record id="view_move_form_purchase_match" model="ir.ui.view"><field name="name">account.move.form.purchase.match</field><field name="model">account.move</field><field name="inherit_id" ref="account.view_move_form"/><field name="arch" type="xml"><xpath expr="//header" position="inside"><button name="action_open_purchase_reconcile_match" type="object" string="Three-Way Match" class="btn-secondary" invisible="move_type not in ('in_invoice', 'in_refund')" groups="account_reconcile_mcp_support.group_reconcile_user"/></xpath></field></record>
-    <menuitem id="menu_purchase_matches" name="Purchase Matches" parent="account_reconcile_mcp_support.menu_reconcile_root" action="action_purchase_matches" sequence="40"/>
+    <record id="view_move_form_purchase_match" model="ir.ui.view">
+        <field name="name">account.move.form.purchase.match</field><field name="model">account.move</field><field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml"><xpath expr="//header" position="inside"><button name="action_open_purchase_reconcile_match" type="object" string="Compare PO / Receipt" class="btn-secondary" invisible="move_type not in ('in_invoice', 'in_refund')" groups="account.group_account_invoice"/></xpath></field>
+    </record>
+    <record id="view_picking_form_vendor_bills" model="ir.ui.view">
+        <field name="name">stock.picking.form.vendor.bills</field><field name="model">stock.picking</field><field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml"><xpath expr="//div[@name='button_box']" position="inside"><button name="action_open_vendor_bills" type="object" class="oe_stat_button" icon="fa-file-text-o" invisible="vendor_bill_count == 0" groups="account.group_account_invoice"><field name="vendor_bill_count" widget="statinfo" string="Vendor Bills"/></button></xpath></field>
+    </record>
+    <menuitem id="menu_reconcile_matching_root" name="Document Matching" parent="account.menu_finance" sequence="25" groups="account.group_account_invoice"/>
+    <menuitem id="menu_purchase_matches" name="Purchase Matches" parent="menu_reconcile_matching_root" action="action_purchase_matches" sequence="10"/>
 </odoo>

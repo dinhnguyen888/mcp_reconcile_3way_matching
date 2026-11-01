@@ -17,7 +17,11 @@ class ReconcileImportBatch(models.Model):
     journal_id = fields.Many2one("account.journal", check_company=True)
     attachment_id = fields.Many2one("ir.attachment", required=True, ondelete="restrict")
     document_type = fields.Selection(
-        [("bank_statement", "Bank Statement"), ("vendor_bill", "Vendor Bill")],
+        [
+            ("bank_statement", "Bank Statement"),
+            ("vendor_bill", "Vendor Bill"),
+            ("receipt", "Receipt"),
+        ],
         required=True,
     )
     checksum = fields.Char(required=True, index=True, copy=False)

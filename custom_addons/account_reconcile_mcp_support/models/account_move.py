@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-from odoo import models, _
+from odoo import _, models
 
 
 class AccountMove(models.Model):
@@ -18,5 +17,5 @@ class AccountMove(models.Model):
             ctx["active_ids"] = self.ids
             ctx["active_model"] = "account.move"
         action["context"] = ctx
-        action["name"] = _("Scan Vendor Bill")
+        action["name"] = _("Import Vendor Bill / Receipt")
         return action

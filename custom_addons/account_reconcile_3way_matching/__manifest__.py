@@ -5,7 +5,7 @@
     "summary": "Purchase and sales three-way matching",
     "license": "LGPL-3",
     "depends": [
-        "account_reconcile_mcp_support",
+        "account",
         "purchase_stock",
         "sale_stock",
     ],

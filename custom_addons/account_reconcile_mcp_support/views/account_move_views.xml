@@ -8,7 +8,7 @@
             <xpath expr="//header" position="inside">
                 <button name="action_open_mcp_bill_upload"
                         type="object"
-                        string="Scan Bill (AI)"
+                        string="Import with MCP"
                         class="btn-secondary"
                         groups="account.group_account_invoice"
                         invisible="move_type not in ('in_invoice', 'in_refund')"/>
@@ -17,7 +17,7 @@
     </record>
 
     <menuitem id="menu_vendor_bill_scan"
-              name="Scan Vendor Bill"
+              name="Import Vendor Bill /    "
               parent="account.menu_finance_payables"
               action="action_vendor_bill_upload_wizard"
               groups="account.group_account_invoice"

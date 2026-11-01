@@ -1,13 +1,11 @@
 from odoo.exceptions import UserError
 
-from odoo import _, fields, models
+from odoo import _, models
 
 
 class ReconcileMatchMixin(models.AbstractModel):
     _name = "account.reconcile.match.mixin"
     _description = "Common Reconciliation Match Behavior"
-
-    case_id = fields.Many2one("reconcile.case", readonly=True, copy=False)
 
     def _validate_match_source(self):
         raise NotImplementedError
@@ -21,9 +19,6 @@ class ReconcileMatchMixin(models.AbstractModel):
     def _get_computed_match_state(self):
         raise NotImplementedError
 
-    def _prepare_case_values(self):
-        raise NotImplementedError
-
     def action_compute(self):
         for record in self:
             record._validate_match_source()
@@ -32,21 +27,10 @@ class ReconcileMatchMixin(models.AbstractModel):
             if values:
                 self.env[record._match_line_model()].create(values)
             record.state = record._get_computed_match_state()
-            if record.state == "exception":
-                record.action_create_case()
-        return True
-
-    def action_create_case(self):
-        for record in self.filtered(lambda match: not match.case_id):
-            record.case_id = self.env["reconcile.case"].create(
-                record._prepare_case_values()
-            )
         return True
 
     def action_approve(self):
-        if not self.env.user.has_group(
-            "account_reconcile_mcp_support.group_reconcile_approver"
-        ):
+        if not self.env.user.has_group("purchase.group_purchase_manager"):
             raise UserError(_("Only a reconciliation approver can approve this match."))
         self.write({"state": "approved"})
         return True

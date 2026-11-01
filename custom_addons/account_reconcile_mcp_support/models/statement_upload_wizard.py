@@ -16,6 +16,7 @@ class StatementUploadWizard(models.TransientModel):
         [
             ("bank_statement", "Bank Statement"),
             ("vendor_bill", "Vendor Bill"),
+            ("receipt", "Receipt"),
         ],
         string="Document Type",
         required=True,
@@ -40,7 +41,7 @@ class StatementUploadWizard(models.TransientModel):
 
     @api.model
     def _default_journal_id(self):
-        if self.env.context.get("default_document_type") == "vendor_bill":
+        if self.env.context.get("default_document_type") in ("vendor_bill", "receipt"):
             return False
         journal_id = self.env.context.get("default_journal_id") or self.env.context.get("active_id")
         if journal_id and self.env.context.get("active_model") in (None, "account.journal"):
@@ -57,7 +58,7 @@ class StatementUploadWizard(models.TransientModel):
         if self.attachment_id:
             return self.attachment_id
         res_model, res_id = "account.journal", self.journal_id.id if self.journal_id else False
-        if self.document_type == "vendor_bill":
+        if self.document_type in ("vendor_bill", "receipt"):
             res_model, res_id = "account.statement.upload.wizard", self.id
         attachment = self.env["ir.attachment"].create({
             "name": self.file_name or "uploaded_document",
@@ -93,7 +94,7 @@ class StatementUploadWizard(models.TransientModel):
             raise UserError(_("Please upload a bank statement or invoice file."))
         self._ensure_attachment()
         self._ensure_import_batch()
-        if self.document_type == "vendor_bill":
+        if self.document_type in ("vendor_bill", "receipt"):
             raise UserError(_(
                 "Local MCP (http://127.0.0.1:8765) is required to scan vendor bills. "
                 "Start mcp_client.py on this computer and try again."

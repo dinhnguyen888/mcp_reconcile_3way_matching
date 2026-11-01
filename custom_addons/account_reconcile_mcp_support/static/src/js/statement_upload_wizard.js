@@ -69,7 +69,7 @@ export class StatementUploadWizardController extends FormController {
             const docType = this.model.root.data.document_type || "bank_statement";
             const mcpResult = await this.pressProcess(clickParams, actualBase64, docType);
 
-            if (docType === "vendor_bill") {
+            if (docType === "vendor_bill" || docType === "receipt") {
                 if (!mcpResult || mcpResult.success === false) {
                     this.notification.add(
                         _t("Local MCP did not return a scanned invoice. Start mcp_client.py on this computer (port 8765) and try again."),
@@ -192,7 +192,7 @@ export class StatementUploadWizardController extends FormController {
             console.warn("[StatementUploadWizard] MCP unavailable:", error);
             this.notification.add(
                 _t("Could not connect to local MCP at 127.0.0.1:8765. Start mcp_client.py on this computer."),
-                { type: docType === "vendor_bill" ? "danger" : "warning", sticky: docType === "vendor_bill" }
+                { type: docType === "bank_statement" ? "warning" : "danger", sticky: docType !== "bank_statement" }
             );
             return null;
         }

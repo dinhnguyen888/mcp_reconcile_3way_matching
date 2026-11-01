@@ -2,13 +2,6 @@ from odoo.addons.account.tests.common import AccountTestInvoicingCommon
 
 
 class TestPurchaseMatch(AccountTestInvoicingCommon):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.env.user.groups_id |= cls.env.ref(
-            "account_reconcile_mcp_support.group_reconcile_user"
-        )
-
     def test_bill_without_purchase_order_creates_exception(self):
         bill = self.init_invoice(
             "in_invoice",
@@ -21,4 +14,3 @@ class TestPurchaseMatch(AccountTestInvoicingCommon):
         match.action_compute()
         self.assertEqual(match.state, "exception")
         self.assertEqual(match.line_ids.result, "missing_po")
-        self.assertTrue(match.case_id)

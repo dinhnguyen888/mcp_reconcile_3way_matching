@@ -693,7 +693,7 @@ def normalize_bill(bill):
 
 def resolve_document_type(raw_type, filename="", text=""):
     t = (raw_type or "auto").strip().lower()
-    if t in ("vendor_bill", "bill", "invoice", "in_invoice"):
+    if t in ("vendor_bill", "receipt", "bill", "invoice", "in_invoice"):
         return "vendor_bill"
     if t in ("bank_statement", "statement"):
         return "bank_statement"

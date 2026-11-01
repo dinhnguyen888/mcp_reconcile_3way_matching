@@ -38,6 +38,14 @@ class ReconcilePurchaseMatch(models.Model):
         tracking=True,
     )
     line_ids = fields.One2many("reconcile.purchase.match.line", "match_id", copy=False)
+    purchase_order_ids = fields.Many2many(
+        "purchase.order", compute="_compute_related_documents"
+    )
+    picking_ids = fields.Many2many(
+        "stock.picking", compute="_compute_related_documents"
+    )
+    purchase_order_count = fields.Integer(compute="_compute_related_documents")
+    picking_count = fields.Integer(compute="_compute_related_documents")
     expected_amount = fields.Monetary(
         compute="_compute_totals", currency_field="currency_id"
     )
@@ -69,18 +77,36 @@ class ReconcilePurchaseMatch(models.Model):
                 record.line_ids.filtered(lambda line: line.result != "matched")
             )
 
-    def _applicable_tolerance(self):
+    @api.depends("bill_id.invoice_line_ids.purchase_line_id")
+    def _compute_related_documents(self):
+        for record in self:
+            orders = record.bill_id.invoice_line_ids.purchase_line_id.order_id
+            record.purchase_order_ids = orders
+            record.picking_ids = orders.picking_ids
+            record.purchase_order_count = len(orders)
+            record.picking_count = len(orders.picking_ids)
+
+    def _related_document_action(self, xmlid, records, name):
+        action = self.env["ir.actions.act_window"]._for_xml_id(xmlid)
+        action["name"] = name
+        if len(records) == 1:
+            action.update(
+                {"view_mode": "form", "res_id": records.id, "views": [(False, "form")]}
+            )
+        else:
+            action["domain"] = [("id", "in", records.ids)]
+        return action
+
+    def action_open_purchase_orders(self):
         self.ensure_one()
-        return self.env["reconcile.tolerance"].search(
-            [
-                ("active", "=", True),
-                ("company_id", "=", self.company_id.id),
-                ("case_type", "=", "purchase"),
-                ("partner_id", "in", [False, self.partner_id.id]),
-                ("currency_id", "in", [False, self.currency_id.id]),
-            ],
-            order="partner_id desc, currency_id desc, sequence, id",
-            limit=1,
+        return self._related_document_action(
+            "purchase.purchase_rfq", self.purchase_order_ids, _("Purchase Orders")
+        )
+
+    def action_open_receipts(self):
+        self.ensure_one()
+        return self._related_document_action(
+            "stock.action_picking_tree_all", self.picking_ids, _("Receipts")
         )
 
     def _validate_match_source(self):
@@ -89,7 +115,6 @@ class ReconcilePurchaseMatch(models.Model):
 
     def _prepare_match_line_values(self):
         self.ensure_one()
-        tolerance = self._applicable_tolerance()
         values = []
         for invoice_line in self.bill_id.invoice_line_ids.filtered(
             lambda line: line.display_type == "product"
@@ -133,27 +158,6 @@ class ReconcilePurchaseMatch(models.Model):
                 elif set(invoice_line.tax_ids.ids) != set(purchase_line.taxes_id.ids):
                     result = "tax_difference"
             expected_subtotal = allowed_quantity * expected_price
-            variance = invoice_line.price_subtotal - expected_subtotal
-            if result != "matched" and tolerance:
-                amount_ok = (
-                    not tolerance.amount_absolute
-                    or abs(variance) <= tolerance.amount_absolute
-                )
-                percentage = (
-                    abs(variance) / abs(expected_subtotal) * 100
-                    if expected_subtotal
-                    else 0.0
-                )
-                percentage_ok = (
-                    not tolerance.percentage or percentage <= tolerance.percentage
-                )
-                quantity_ok = (
-                    not tolerance.quantity
-                    or abs(invoice_line.quantity - allowed_quantity)
-                    <= tolerance.quantity
-                )
-                if amount_ok and percentage_ok and quantity_ok:
-                    result = "within_tolerance"
             values.append(
                 {
                     "match_id": self.id,
@@ -185,36 +189,6 @@ class ReconcilePurchaseMatch(models.Model):
         if self.line_ids and results <= {"matched", "within_tolerance"}:
             return "within_tolerance"
         return "exception"
-
-    def _prepare_case_values(self):
-        self.ensure_one()
-        return {
-            "reconcile_type": "purchase",
-            "company_id": self.company_id.id,
-            "partner_id": self.partner_id.id,
-            "expected_amount": self.expected_amount,
-            "actual_amount": self.actual_amount,
-            "risk_level": "high" if abs(self.variance_amount) else "medium",
-            "department": "purchase",
-            "reason_code": "quantity"
-            if self.line_ids.filtered(lambda line: line.result == "quantity_difference")
-            else "price",
-            "reason": _("Three-way match exceptions for %s")
-            % self.bill_id.display_name,
-            "source_line_ids": [
-                (
-                    0,
-                    0,
-                    {
-                        "source_role": "invoice",
-                        "source_model": "account.move",
-                        "source_res_id": self.bill_id.id,
-                        "expected_amount": self.expected_amount,
-                        "actual_amount": self.actual_amount,
-                    },
-                )
-            ],
-        }
 
 
 class ReconcilePurchaseMatchLine(models.Model):
@@ -299,29 +273,37 @@ class AccountMove(models.Model):
         return super().action_post()
 
 
-class ReconcileCloseChecklist(models.Model):
-    _inherit = "reconcile.close.checklist"
+class StockPicking(models.Model):
+    _inherit = "stock.picking"
 
-    def _get_reconciliation_checks(self):
-        values = super()._get_reconciliation_checks()
-        self.ensure_one()
-        purchase_lines = (
-            self.env["purchase.order.line"]
-            .search(
-                [
-                    ("company_id", "=", self.company_id.id),
-                    ("order_id.state", "in", ("purchase", "done")),
-                    ("order_id.date_order", "<=", self.date_to),
-                    ("qty_received", ">", 0),
-                ]
+    vendor_bill_ids = fields.Many2many("account.move", compute="_compute_vendor_bills")
+    vendor_bill_count = fields.Integer(compute="_compute_vendor_bills")
+
+    @api.depends("purchase_id.invoice_ids")
+    def _compute_vendor_bills(self):
+        for picking in self:
+            bills = picking.purchase_id.invoice_ids.filtered(
+                lambda move: (
+                    move.move_type in ("in_invoice", "in_refund")
+                    and move.state != "cancel"
+                )
             )
-            .filtered(lambda line: line.qty_received > line.qty_invoiced)
+            picking.vendor_bill_ids = bills
+            picking.vendor_bill_count = len(bills)
+
+    def action_open_vendor_bills(self):
+        self.ensure_one()
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "account.action_move_in_invoice_type"
         )
-        values["received_not_billed"] = {
-            "count": len(purchase_lines),
-            "impact_value": sum(
-                (line.qty_received - line.qty_invoiced) * line.price_unit
-                for line in purchase_lines
-            ),
-        }
-        return values
+        if self.vendor_bill_count == 1:
+            action.update(
+                {
+                    "view_mode": "form",
+                    "res_id": self.vendor_bill_ids.id,
+                    "views": [(False, "form")],
+                }
+            )
+        else:
+            action["domain"] = [("id", "in", self.vendor_bill_ids.ids)]
+        return action

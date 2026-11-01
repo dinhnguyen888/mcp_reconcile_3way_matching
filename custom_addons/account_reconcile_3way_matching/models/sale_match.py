@@ -125,34 +125,6 @@ class ReconcileSaleMatch(models.Model):
             else "exception"
         )
 
-    def _prepare_case_values(self):
-        self.ensure_one()
-        return {
-            "reconcile_type": "sale",
-            "company_id": self.company_id.id,
-            "partner_id": self.partner_id.id,
-            "actual_amount": self.invoice_id.amount_untaxed_signed,
-            "expected_amount": self.invoice_id.amount_untaxed_signed
-            - self.variance_amount,
-            "risk_level": "high",
-            "department": "sales",
-            "reason_code": "quantity",
-            "reason": _("Sales fulfilment exceptions for %s")
-            % self.invoice_id.display_name,
-            "source_line_ids": [
-                (
-                    0,
-                    0,
-                    {
-                        "source_role": "invoice",
-                        "source_model": "account.move",
-                        "source_res_id": self.invoice_id.id,
-                        "actual_amount": self.invoice_id.amount_untaxed_signed,
-                    },
-                )
-            ],
-        }
-
 
 class ReconcileSaleMatchLine(models.Model):
     _name = "reconcile.sale.match.line"
@@ -208,31 +180,3 @@ class AccountMove(models.Model):
             match_name=_("Sales Match - %s"),
             action_name=_("Sales Fulfilment Match"),
         )
-
-
-class ReconcileCloseChecklist(models.Model):
-    _inherit = "reconcile.close.checklist"
-
-    def _get_reconciliation_checks(self):
-        values = super()._get_reconciliation_checks()
-        self.ensure_one()
-        lines = (
-            self.env["sale.order.line"]
-            .search(
-                [
-                    ("company_id", "=", self.company_id.id),
-                    ("state", "in", ("sale", "done")),
-                    ("order_id.date_order", "<=", self.date_to),
-                    ("qty_delivered", ">", 0),
-                ]
-            )
-            .filtered(lambda line: line.qty_delivered > line.qty_invoiced)
-        )
-        values["delivered_not_invoiced"] = {
-            "count": len(lines),
-            "impact_value": sum(
-                (line.qty_delivered - line.qty_invoiced) * line.price_unit
-                for line in lines
-            ),
-        }
-        return values

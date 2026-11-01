@@ -11,7 +11,7 @@
                             <field name="document_type" widget="radio" options="{'horizontal': true}"/>
                             <field name="journal_id"
                                    options="{'no_create': True, 'no_open': True}"
-                                   invisible="document_type == 'vendor_bill'"
+                                   invisible="document_type in ('vendor_bill', 'receipt')"
                                    required="document_type == 'bank_statement'"/>
                             <field name="move_id" invisible="1"/>
                         </group>
@@ -19,7 +19,7 @@
 
                     <div class="mt-2 mb-3">
                         <label for="document" class="form-label fw-bold mb-2">Upload File</label>
-                        <p class="text-muted mb-2" invisible="document_type != 'vendor_bill'">
+                        <p class="text-muted mb-2" invisible="document_type not in ('vendor_bill', 'receipt')">
                             Local AI on this computer scans the invoice. If a vendor bill with the same
                             number already exists, it will be opened; otherwise a draft bill is filled in.
                         </p>
@@ -36,7 +36,7 @@
                                 name="action_open_manual_create"
                                 class="btn btn-link text-decoration-none text-muted"
                                 icon="fa-pencil-square-o"
-                                invisible="document_type == 'vendor_bill'"/>
+                                invisible="document_type in ('vendor_bill', 'receipt')"/>
                     </div>
                     <div class="d-flex gap-2">
                         <button string="Process"
