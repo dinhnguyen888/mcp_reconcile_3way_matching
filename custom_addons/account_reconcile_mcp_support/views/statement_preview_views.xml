@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_account_statement_ocr_preview_form" model="ir.ui.view">
-        <field name="name">account.statement.ocr.preview.form</field>
-        <field name="model">account.statement.ocr.preview</field>
+    <record id="view_account_statement_preview_form" model="ir.ui.view">
+        <field name="name">account.statement.preview.form</field>
+        <field name="model">account.statement.preview</field>
         <field name="arch" type="xml">
-            <form string="AI OCR Statement Preview &amp; Verification">
+            <form string="AI Statement Preview &amp; Verification">
                 <header>
                     <button name="action_confirm" string="Confirm &amp; Import to Journal" type="object" class="btn-success"/>
                     <button string="Cancel" class="btn-secondary" special="cancel"/>
@@ -61,9 +61,9 @@
     </record>
 
     <!-- Client Action registration for Split-Screen Preview -->
-    <record id="action_statement_ocr_preview_client" model="ir.actions.client">
-        <field name="name">AI OCR Statement Preview</field>
-        <field name="tag">statement_ocr_preview</field>
+    <record id="action_statement_preview_client" model="ir.actions.client">
+        <field name="name">AI Statement Preview</field>
+        <field name="tag">statement_preview</field>
         <field name="target">new</field>
     </record>
 </odoo>

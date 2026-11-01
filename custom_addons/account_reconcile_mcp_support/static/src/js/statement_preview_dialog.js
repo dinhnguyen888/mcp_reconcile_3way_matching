@@ -5,8 +5,8 @@ import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 
-export class StatementOcrPreviewDialog extends Component {
-    static template = "account_reconcile_mcp_support.StatementOcrPreviewDialog";
+export class StatementPreviewDialog extends Component {
+    static template = "account_reconcile_mcp_support.StatementPreviewDialog";
     static props = {
         action: { type: Object, optional: true },
         "*": true,
@@ -205,7 +205,7 @@ export class StatementOcrPreviewDialog extends Component {
         this.state.isSaving = true;
         try {
             const resultAction = await this.orm.call(
-                "account.statement.ocr.preview",
+                "account.statement.preview",
                 "action_confirm",
                 [[this.previewId]],
                 {
@@ -234,4 +234,4 @@ export class StatementOcrPreviewDialog extends Component {
     }
 }
 
-registry.category("actions").add("statement_ocr_preview", StatementOcrPreviewDialog);
+registry.category("actions").add("statement_preview", StatementPreviewDialog);

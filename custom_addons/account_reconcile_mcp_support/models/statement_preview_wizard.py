@@ -1,15 +1,16 @@
-# -*- coding: utf-8 -*-
 import json
 import logging
-from odoo import api, fields, models, _
+
 from odoo.exceptions import UserError
+
+from odoo import _, api, fields, models
 
 _logger = logging.getLogger(__name__)
 
 
-class AccountStatementOcrPreview(models.TransientModel):
-    _name = "account.statement.ocr.preview"
-    _description = "AI OCR Statement Preview & Verification"
+class AccountStatementPreview(models.TransientModel):
+    _name = "account.statement.preview"
+    _description = "AI Statement Preview & Verification"
 
     journal_id = fields.Many2one(
         "account.journal",
@@ -34,7 +35,7 @@ class AccountStatementOcrPreview(models.TransientModel):
     raw_text = fields.Text(string="Raw Document Text")
     page_images_json = fields.Text(string="Rendered Page Images (JSON)")
     line_ids = fields.One2many(
-        "account.statement.ocr.preview.line",
+        "account.statement.preview.line",
         "preview_id",
         string="Statement Lines",
     )
@@ -59,7 +60,7 @@ class AccountStatementOcrPreview(models.TransientModel):
         Accepts optional updated_records from the frontend client action.
         """
         self.ensure_one()
-        PreviewLine = self.env["account.statement.ocr.preview.line"]
+        PreviewLine = self.env["account.statement.preview.line"]
 
         # If updated records passed from frontend JSON
         if updated_records and isinstance(updated_records, list):
@@ -74,9 +75,9 @@ class AccountStatementOcrPreview(models.TransientModel):
         if not self.line_ids:
             raise UserError(_("No transaction lines to import into bank journal."))
 
-        service = self.env["mcp.reconcile.service"]
+        StatementLine = self.env["account.bank.statement.line"]
         statement_values = [
-            service._prepare_bank_statement_line_values(
+            StatementLine._prepare_bank_statement_line_values(
                 {
                     "date": line.date,
                     "partner_id": line.partner_id.id,
@@ -91,7 +92,7 @@ class AccountStatementOcrPreview(models.TransientModel):
             )
             for line in self.line_ids
         ]
-        created_lines = self.env["account.bank.statement.line"].create(statement_values)
+        created_lines = StatementLine.create(statement_values)
 
         if self.import_batch_id:
             self.import_batch_id.write({
@@ -100,54 +101,38 @@ class AccountStatementOcrPreview(models.TransientModel):
             })
 
         _logger.info(
-            "Created %d bank statement lines from AI OCR Preview for journal %s",
+            "Created %d bank statement lines from AI Preview for journal %s",
             len(created_lines),
             self.journal_id.name,
         )
 
-        # Try to redirect to OCA reconcile view if installed, or standard bank reconcile action
-        action = self.env.ref("account_reconcile_oca.action_bank_statement_line_reconcile", raise_if_not_found=False)
-        if action:
-            res_action = action.read()[0]
-            form_view = self.env.ref("account_reconcile_oca.bank_statement_line_form_reconcile_view", raise_if_not_found=False)
-            res_action["domain"] = [("journal_id", "=", self.journal_id.id)]
-            res_action["context"] = {
-                "default_journal_id": self.journal_id.id,
-                "active_id": self.journal_id.id,
-                "active_ids": [self.journal_id.id],
-                "active_model": "account.journal",
-                "search_default_not_reconciled": True,
-                "view_ref": "account_reconcile_oca.bank_statement_line_form_reconcile_view",
-                "form_view_ref": "account_reconcile_oca.bank_statement_line_form_reconcile_view",
-            }
-            if form_view:
-                views = [(v[0], v[1]) for v in res_action.get("views", []) if v[1] != "form"]
-                views.append((form_view.id, "form"))
-                res_action["views"] = views
-            return res_action
-
-        return {
-            "type": "ir.actions.client",
-            "tag": "display_notification",
-            "params": {
-                "title": _("Bank Statement Imported"),
-                "message": _("Successfully imported %d transactions into bank journal %s.") % (
-                    len(created_lines), self.journal_id.name
-                ),
-                "type": "success",
-                "sticky": False,
-                "next": {"type": "ir.actions.act_window_close"},
-            },
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "account_reconcile_oca.action_bank_statement_line_reconcile"
+        )
+        action["domain"] = [("journal_id", "=", self.journal_id.id)]
+        action["context"] = {
+            "default_journal_id": self.journal_id.id,
+            "active_id": self.journal_id.id,
+            "active_ids": [self.journal_id.id],
+            "active_model": "account.journal",
+            "search_default_not_reconciled": True,
+            "view_ref": "account_reconcile_oca.bank_statement_line_form_reconcile_view",
+            "form_view_ref": "account_reconcile_oca.bank_statement_line_form_reconcile_view",
         }
+        form_view = self.env.ref("account_reconcile_oca.bank_statement_line_form_reconcile_view")
+        views = [(v[0], v[1]) for v in action.get("views", []) if v[1] != "form"]
+        views.append((form_view.id, "form"))
+        action["views"] = views
+        return action
 
 
-class AccountStatementOcrPreviewLine(models.TransientModel):
-    _name = "account.statement.ocr.preview.line"
-    _description = "AI OCR Statement Preview Line"
+class AccountStatementPreviewLine(models.TransientModel):
+    _name = "account.statement.preview.line"
+    _description = "AI Statement Preview Line"
     _order = "page_number, id"
 
     preview_id = fields.Many2one(
-        "account.statement.ocr.preview",
+        "account.statement.preview",
         string="Preview Wizard",
         required=True,
         ondelete="cascade",

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <t t-name="account_reconcile_mcp_support.StatementOcrPreviewDialog">
+    <t t-name="account_reconcile_mcp_support.StatementPreviewDialog">
         <div class="ocr-preview-modal d-flex flex-column h-100 w-100 bg-white">
             <!-- HEADER TOOLBAR -->
             <header class="ocr-preview-header d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light">
                 <div class="d-flex align-items-center gap-2">
                     <span class="fs-5 fw-bold text-dark">
-                        <i class="fa fa-eye text-primary me-2"/>AI OCR Preview &amp; Verification
+                        <i class="fa fa-eye text-primary me-2"/>AI Statement Preview &amp; Verification
                     </span>
                     <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
                         <i class="fa fa-bolt me-1 text-warning"/> <t t-esc="engine"/>

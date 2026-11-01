@@ -30,7 +30,7 @@ SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPS_DIR = os.path.join(SERVER_DIR, "documents", "temps")
 os.makedirs(TEMPS_DIR, exist_ok=True)
 
-MCP_PORT = int(os.environ.get("MCP_PORT", "8765"))
+MCP_PORT = int(os.environ.get("MCP_PORT", "8785"))
 MCP_HOST = os.environ.get("MCP_HOST", "127.0.0.1")
 AGY_BIN = os.environ.get("AGY_BIN", "agy")
 AGY_EXTRA_PATH = os.environ.get("AGY_EXTRA_PATH", "/home/dinh/.local/bin")

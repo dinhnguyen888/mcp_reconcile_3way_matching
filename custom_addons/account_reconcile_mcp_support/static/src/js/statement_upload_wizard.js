@@ -5,14 +5,7 @@ import { formView } from "@web/views/form/form_view";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
-
-const MCP_ENDPOINTS = [
-    "http://127.0.0.1:8765/api/process_statement",
-    "http://localhost:8765/api/process_statement",
-    "http://127.0.0.1:8765",
-    "http://localhost:8765",
-];
-const MCP_HEALTH = ["http://127.0.0.1:8765/health", "http://localhost:8765/health"];
+import { processDocumentWithLocalMcp } from "./mcp_document_client";
 
 function isSizeString(val) {
     return typeof val === "string" && (
@@ -72,7 +65,7 @@ export class StatementUploadWizardController extends FormController {
             if (docType === "vendor_bill" || docType === "receipt") {
                 if (!mcpResult || mcpResult.success === false) {
                     this.notification.add(
-                        _t("Local MCP did not return a scanned invoice. Start mcp_client.py on this computer (port 8765) and try again."),
+                        _t("Local MCP did not return a scanned invoice. Start mcp_client.py on this computer (port 8785) and try again."),
                         { type: "danger", sticky: true }
                     );
                     return false;
@@ -132,84 +125,34 @@ export class StatementUploadWizardController extends FormController {
         }
         cleanBase64 = cleanBase64.replace(/\s+/g, "");
 
-        const payload = {
-            file_base64: cleanBase64,
-            file: cleanBase64,
-            file_name: fileName,
-            company_id: companyId,
-            journal_id: journalId,
-            attachment_id: attachmentId,
-            type: docType,
-        };
-
         this.notification.add(
             _t("Sending document to local AI (this may take a few seconds)..."),
             { type: "info", sticky: false }
         );
 
         try {
-            const healthy = await this._mcpHealth();
-            if (!healthy) {
-                throw new Error("MCP healthcheck failed");
-            }
-
-            let response = null;
-            let lastError = null;
-            for (const endpoint of MCP_ENDPOINTS) {
-                try {
-                    response = await fetch(endpoint, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-Document-Type": docType,
-                        },
-                        body: JSON.stringify(payload),
-                    });
-                    if (response.ok) {
-                        break;
-                    }
-                } catch (err) {
-                    lastError = err;
-                }
-            }
-
-            if (!response || !response.ok) {
-                throw lastError || new Error(_t("MCP server at 127.0.0.1:8765 did not respond."));
-            }
-
-            const result = await response.json();
-            if (result.success) {
-                this.agyResult = result.result || result;
-                this.notification.add(result.message || _t("Document analyzed by local AI."), {
-                    type: "success",
-                    sticky: false,
-                });
-                return result;
-            }
-            this.notification.add(result.error || _t("MCP returned an error."), { type: "warning" });
+            const result = await processDocumentWithLocalMcp({
+                fileBase64: cleanBase64,
+                fileName,
+                documentType: docType,
+                companyId,
+                journalId,
+                attachmentId,
+            });
+            this.agyResult = result.result || result;
+            this.notification.add(result.message || _t("Document analyzed by local AI."), {
+                type: "success",
+                sticky: false,
+            });
             return result;
         } catch (error) {
             console.warn("[StatementUploadWizard] MCP unavailable:", error);
             this.notification.add(
-                _t("Could not connect to local MCP at 127.0.0.1:8765. Start mcp_client.py on this computer."),
+                _t("Could not connect to local MCP at 127.0.0.1:8785. Start mcp_client.py on this computer."),
                 { type: docType === "bank_statement" ? "warning" : "danger", sticky: docType !== "bank_statement" }
             );
             return null;
         }
-    }
-
-    async _mcpHealth() {
-        for (const url of MCP_HEALTH) {
-            try {
-                const res = await fetch(url, { method: "GET" });
-                if (res.ok) {
-                    return true;
-                }
-            } catch {
-                // try next
-            }
-        }
-        return false;
     }
 }
 

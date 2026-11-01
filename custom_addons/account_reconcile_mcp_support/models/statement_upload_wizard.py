@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 import json
 import logging
 
-from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+
+from odoo import _, api, fields, models
 
 _logger = logging.getLogger(__name__)
 
@@ -96,7 +96,7 @@ class StatementUploadWizard(models.TransientModel):
         self._ensure_import_batch()
         if self.document_type in ("vendor_bill", "receipt"):
             raise UserError(_(
-                "Local MCP (http://127.0.0.1:8765) is required to scan vendor bills. "
+                "Local MCP (http://127.0.0.1:8785) is required to scan vendor bills. "
                 "Start mcp_client.py on this computer and try again."
             ))
         return self.action_open_preview()
@@ -131,8 +131,7 @@ class StatementUploadWizard(models.TransientModel):
         if not (fill_move and fill_move.exists() and fill_move.move_type in ("in_invoice", "in_refund") and fill_move.state == "draft"):
             fill_move = self.env["account.move"]
 
-        service = self.env["mcp.reconcile.service"]
-        result = service.find_or_create_vendor_bill_from_ai(
+        result = self.env["account.move"].find_or_create_vendor_bill_from_ai(
             bill_data,
             pdf_base64=self.document,
             filename=self.file_name,
@@ -142,7 +141,8 @@ class StatementUploadWizard(models.TransientModel):
         if self.attachment_id and bill:
             self.attachment_id.write({"res_model": "account.move", "res_id": bill.id})
         self.import_batch_id.write({"state": "completed", "imported_count": 1})
-        return service._bill_action(bill, matched=result.get("matched"))
+        match = bill._ensure_purchase_reconcile_match()
+        return match.action_open_workspace()
 
     def action_open_preview(self, mcp_data=None):
         self.ensure_one()
@@ -172,6 +172,7 @@ class StatementUploadWizard(models.TransientModel):
         if fn.endswith(".pdf") or not fn:
             try:
                 import base64
+
                 import fitz
                 pdf_bytes = base64.b64decode(self.document)
                 doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -188,7 +189,7 @@ class StatementUploadWizard(models.TransientModel):
         if mcp_data and isinstance(mcp_data, dict) and mcp_data.get("total_pages"):
             total_pages = mcp_data["total_pages"]
 
-        preview = self.env["account.statement.ocr.preview"].create({
+        preview = self.env["account.statement.preview"].create({
             "journal_id": self.journal_id.id,
             "company_id": self.env.company.id,
             "attachment_id": attachment.id,
@@ -200,7 +201,7 @@ class StatementUploadWizard(models.TransientModel):
             "raw_text": mcp_data.get("text") if isinstance(mcp_data, dict) else "",
         })
 
-        PreviewLine = self.env["account.statement.ocr.preview.line"]
+        PreviewLine = self.env["account.statement.preview.line"]
         line_vals = [
             PreviewLine._prepare_mcp_values(preview, record, index)
             for index, record in enumerate(records_data)
@@ -223,9 +224,9 @@ class StatementUploadWizard(models.TransientModel):
 
         return {
             "type": "ir.actions.client",
-            "tag": "statement_ocr_preview",
+            "tag": "statement_preview",
             "target": "new",
-            "name": _("AI OCR Statement Preview & Verification - %s") % (self.file_name or ""),
+            "name": _("AI Statement Preview & Verification - %s") % (self.file_name or ""),
             "params": {
                 "preview_id": preview.id,
                 "journal_id": self.journal_id.id,
@@ -246,7 +247,9 @@ class StatementUploadWizard(models.TransientModel):
     def _fallback_pdf_table_records(self):
         try:
             import base64
+
             import fitz
+
             from ..client.mcp_client import extract_pdf_table_records, normalize_records
             file_bytes = base64.b64decode(self.document)
             doc = fitz.open(stream=file_bytes, filetype="pdf")

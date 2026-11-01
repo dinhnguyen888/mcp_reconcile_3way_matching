@@ -1,1 +1,0 @@
-from . import test_bank_statement_import as test_bank_statement_import
