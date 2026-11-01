@@ -199,21 +199,13 @@ class StatementUploadWizard(models.TransientModel):
             "raw_text": mcp_data.get("text") if isinstance(mcp_data, dict) else "",
         })
 
-        line_vals = []
-        for idx, r in enumerate(records_data):
-            line_vals.append({
-                "preview_id": preview.id,
-                "temp_id": r.get("temp_id") or f"rec_{idx + 1:03d}",
-                "date": r.get("date") or fields.Date.context_today(self),
-                "partner_name": r.get("partner_name") or "",
-                "account_number": r.get("account_number") or "",
-                "ref": r.get("ref") or "",
-                "narration": r.get("narration") or r.get("description") or "",
-                "amount": float(r.get("amount") or 0.0),
-                "page_number": int(r.get("page_number") or 1),
-            })
+        PreviewLine = self.env["account.statement.ocr.preview.line"]
+        line_vals = [
+            PreviewLine._prepare_mcp_values(preview, record, index)
+            for index, record in enumerate(records_data)
+        ]
         if line_vals:
-            self.env["account.statement.ocr.preview.line"].create(line_vals)
+            PreviewLine.create(line_vals)
         preview._compute_totals()
 
         formatted_lines = [{

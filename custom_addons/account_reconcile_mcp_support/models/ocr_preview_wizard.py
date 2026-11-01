@@ -59,71 +59,39 @@ class AccountStatementOcrPreview(models.TransientModel):
         Accepts optional updated_records from the frontend client action.
         """
         self.ensure_one()
-        StatementLine = self.env["account.bank.statement.line"]
-        Partner = self.env["res.partner"]
+        PreviewLine = self.env["account.statement.ocr.preview.line"]
 
         # If updated records passed from frontend JSON
         if updated_records and isinstance(updated_records, list):
             self.line_ids.unlink()
-            for r in updated_records:
-                box_2d = [0, 0, 0, 0]
-                if isinstance(r.get("bounding_box"), dict):
-                    box_2d = r["bounding_box"].get("box_2d") or [0, 0, 0, 0]
-                elif isinstance(r.get("box_2d"), list):
-                    box_2d = r.get("box_2d")
-
-                self.env["account.statement.ocr.preview.line"].create({
-                    "preview_id": self.id,
-                    "temp_id": r.get("temp_id") or "rec",
-                    "date": r.get("date") or fields.Date.context_today(self),
-                    "partner_name": r.get("partner_name") or "",
-                    "account_number": r.get("account_number") or "",
-                    "ref": r.get("ref") or "",
-                    "narration": r.get("narration") or r.get("description") or "",
-                    "amount": float(r.get("amount") or 0.0),
-                    "page_number": int(r.get("page_number") or 1),
-                    "box_ymin": box_2d[0] if len(box_2d) > 0 else 0,
-                    "box_xmin": box_2d[1] if len(box_2d) > 1 else 0,
-                    "box_ymax": box_2d[2] if len(box_2d) > 2 else 0,
-                    "box_xmax": box_2d[3] if len(box_2d) > 3 else 0,
-                    "field_coords_json": json.dumps(r.get("field_coordinates") or {}),
-                })
+            PreviewLine.create(
+                [
+                    PreviewLine._prepare_mcp_values(self, record, index)
+                    for index, record in enumerate(updated_records)
+                ]
+            )
 
         if not self.line_ids:
             raise UserError(_("No transaction lines to import into bank journal."))
 
-        created_lines = []
-        for line in self.line_ids:
-            partner = line.partner_id
-            if not partner and line.partner_name:
-                partner = Partner.search([
-                    "|",
-                    ("name", "ilike", line.partner_name.strip()),
-                    ("vat", "=", line.partner_name.strip()),
-                ], limit=1)
-
-            # Build clean payment_ref
-            narration = (line.narration or "").strip()
-            ref = (line.ref or "").strip()
-            if ref and narration and ref not in narration:
-                payment_ref = f"{ref} - {narration}"
-            elif narration:
-                payment_ref = narration
-            elif ref:
-                payment_ref = ref
-            else:
-                payment_ref = _("AI extracted bank statement transaction")
-
-            created_line = StatementLine.create({
-                "journal_id": self.journal_id.id,
-                "date": line.date or fields.Date.context_today(self),
-                "payment_ref": payment_ref,
-                "amount": line.amount,
-                "partner_id": partner.id if partner else False,
-                "account_number": line.account_number or False,
-                "import_batch_id": self.import_batch_id.id or False,
-            })
-            created_lines.append(created_line.id)
+        service = self.env["mcp.reconcile.service"]
+        statement_values = [
+            service._prepare_bank_statement_line_values(
+                {
+                    "date": line.date,
+                    "partner_id": line.partner_id.id,
+                    "partner_name": line.partner_name,
+                    "account_number": line.account_number,
+                    "ref": line.ref,
+                    "narration": line.narration,
+                    "amount": line.amount,
+                },
+                self.journal_id,
+                import_batch=self.import_batch_id,
+            )
+            for line in self.line_ids
+        ]
+        created_lines = self.env["account.bank.statement.line"].create(statement_values)
 
         if self.import_batch_id:
             self.import_batch_id.write({
@@ -198,3 +166,28 @@ class AccountStatementOcrPreviewLine(models.TransientModel):
     box_ymax = fields.Integer(string="Box Y Max", default=0)
     box_xmax = fields.Integer(string="Box X Max", default=0)
     field_coords_json = fields.Text(string="Field Coordinates JSON", default="{}")
+
+    @api.model
+    def _prepare_mcp_values(self, preview, record, index=0):
+        box_2d = [0, 0, 0, 0]
+        if isinstance(record.get("bounding_box"), dict):
+            box_2d = record["bounding_box"].get("box_2d") or box_2d
+        elif isinstance(record.get("box_2d"), list):
+            box_2d = record["box_2d"]
+        box_2d = [*box_2d[:4], 0, 0, 0, 0][:4]
+        return {
+            "preview_id": preview.id,
+            "temp_id": record.get("temp_id") or f"rec_{index + 1:03d}",
+            "date": record.get("date") or fields.Date.context_today(self),
+            "partner_name": record.get("partner_name") or "",
+            "account_number": record.get("account_number") or "",
+            "ref": record.get("ref") or "",
+            "narration": record.get("narration") or record.get("description") or "",
+            "amount": float(record.get("amount") or 0.0),
+            "page_number": int(record.get("page_number") or 1),
+            "box_ymin": box_2d[0],
+            "box_xmin": box_2d[1],
+            "box_ymax": box_2d[2],
+            "box_xmax": box_2d[3],
+            "field_coords_json": json.dumps(record.get("field_coordinates") or {}),
+        }

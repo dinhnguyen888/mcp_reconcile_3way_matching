@@ -17,6 +17,53 @@ class McpReconcileService(models.AbstractModel):
     _name = "mcp.reconcile.service"
     _description = "Service handling AI & MCP Vendor Bill Creation and Bank Reconcile"
 
+    def _find_statement_partner(self, partner_name):
+        partner_name = (partner_name or "").strip()
+        if not partner_name:
+            return self.env["res.partner"]
+        return self.env["res.partner"].search(
+            [
+                "|",
+                ("name", "ilike", partner_name),
+                ("vat", "=", partner_name),
+            ],
+            limit=1,
+        )
+
+    def _prepare_bank_statement_line_values(
+        self, transaction, journal, import_batch=None
+    ):
+        partner_id = transaction.get("partner_id")
+        partner = (
+            self.env["res.partner"].browse(partner_id).exists()
+            if partner_id
+            else self.env["res.partner"]
+        )
+        if not partner:
+            partner = self._find_statement_partner(transaction.get("partner_name"))
+        narration = (
+            transaction.get("narration")
+            or transaction.get("description")
+            or transaction.get("label")
+            or ""
+        ).strip()
+        reference = (transaction.get("ref") or "").strip()
+        if reference and narration and reference not in narration:
+            payment_reference = f"{reference} - {narration}"
+        else:
+            payment_reference = narration or reference or _(
+                "AI extracted bank statement transaction"
+            )
+        return {
+            "journal_id": journal.id,
+            "date": transaction.get("date") or fields.Date.context_today(self),
+            "payment_ref": payment_reference,
+            "amount": float(transaction.get("amount") or 0.0),
+            "partner_id": partner.id or False,
+            "account_number": transaction.get("account_number") or False,
+            "import_batch_id": import_batch.id if import_batch else False,
+        }
+
     def _find_vendor_partner(self, bill_data, create_if_missing=False):
         Partner = self.env["res.partner"]
         vendor_vat = _sanitize_vat(bill_data.get("vendor_vat"))
@@ -316,28 +363,15 @@ class McpReconcileService(models.AbstractModel):
         if not journal:
             raise UserError(_("No suitable Bank Journal found!"))
 
-        created_lines = []
-        Partner = self.env["res.partner"]
-        StatementLine = self.env["account.bank.statement.line"]
-
-        for txn in transactions:
-            date = txn.get("date") or fields.Date.context_today(self)
-            payment_ref = txn.get("description") or txn.get("label") or "Bank statement transaction"
-            amount = float(txn.get("amount", 0.0))
-            partner_name = (txn.get("partner_name") or "").strip()
-            partner = Partner.search([("name", "ilike", partner_name)], limit=1) if partner_name else Partner.browse()
-            stmt_line = StatementLine.create({
-                "journal_id": journal.id,
-                "date": date,
-                "payment_ref": payment_ref,
-                "amount": amount,
-                "partner_id": partner.id if partner else False,
-            })
-            created_lines.append(stmt_line)
+        values = [
+            self._prepare_bank_statement_line_values(transaction, journal)
+            for transaction in transactions
+        ]
+        created_lines = self.env["account.bank.statement.line"].create(values)
 
         return {
             "journal_id": journal.id,
             "journal_name": journal.name,
             "count": len(created_lines),
-            "line_ids": [l.id for l in created_lines],
+            "line_ids": created_lines.ids,
         }
