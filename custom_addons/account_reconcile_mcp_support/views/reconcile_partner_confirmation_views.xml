@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_reconcile_partner_confirmation_list" model="ir.ui.view">
+        <field name="name">reconcile.partner.confirmation.list</field>
+        <field name="model">reconcile.partner.confirmation</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="state == 'difference'">
+                <field name="name"/><field name="company_id" groups="base.group_multi_company"/>
+                <field name="partner_id"/><field name="account_type"/><field name="date_from"/><field name="date_to"/>
+                <field name="closing_balance" sum="Book Balance"/><field name="partner_confirmed_balance" sum="Confirmed"/><field name="variance_amount" sum="Variance"/><field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_reconcile_partner_confirmation_form" model="ir.ui.view">
+        <field name="name">reconcile.partner.confirmation.form</field>
+        <field name="model">reconcile.partner.confirmation</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_calculate" type="object" string="Calculate Book Balance" class="btn-primary" invisible="state != 'not_sent'"/>
+                    <button name="action_mark_sent" type="object" string="Mark Sent" class="btn-primary" invisible="state != 'not_sent'"/>
+                    <button name="action_record_response" type="object" string="Record Response" class="btn-primary" invisible="state != 'sent'"/>
+                    <button name="action_investigate" type="object" string="Investigate" invisible="state != 'difference'"/>
+                    <button name="action_mark_adjusted" type="object" string="Mark Adjusted" invisible="state != 'investigating'" groups="account_reconcile_mcp_support.group_reconcile_approver"/>
+                    <button name="action_close" type="object" string="Close" invisible="state not in ('matched', 'adjusted')" groups="account_reconcile_mcp_support.group_reconcile_approver"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group><group><field name="company_id"/><field name="partner_id"/><field name="account_type"/><field name="date_from"/><field name="date_to"/></group><group><field name="opening_balance"/><field name="debit"/><field name="credit"/><field name="closing_balance"/><field name="partner_confirmed_balance"/><field name="variance_amount"/><field name="case_id"/></group></group>
+                    <group><field name="attachment_ids" widget="many2many_binary"/><field name="notes"/></group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_reconcile_partner_confirmations" model="ir.actions.act_window">
+        <field name="name">Partner Confirmations</field><field name="res_model">reconcile.partner.confirmation</field><field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_partner_confirmations" name="Partner Confirmations" parent="menu_reconcile_root" action="action_reconcile_partner_confirmations" sequence="22"/>
+</odoo>

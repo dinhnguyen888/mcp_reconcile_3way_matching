@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_reconcile_user" model="res.groups">
+        <field name="name">Reconciliation User</field>
+        <field name="category_id" ref="base.module_category_accounting_accounting"/>
+        <field name="implied_ids" eval="[(4, ref('account.group_account_user'))]"/>
+    </record>
+    <record id="group_reconcile_reviewer" model="res.groups">
+        <field name="name">Reconciliation Reviewer</field>
+        <field name="category_id" ref="base.module_category_accounting_accounting"/>
+        <field name="implied_ids" eval="[(4, ref('account_reconcile_mcp_support.group_reconcile_user'))]"/>
+    </record>
+    <record id="group_reconcile_approver" model="res.groups">
+        <field name="name">Reconciliation Approver</field>
+        <field name="category_id" ref="base.module_category_accounting_accounting"/>
+        <field name="implied_ids" eval="[(4, ref('account_reconcile_mcp_support.group_reconcile_reviewer'))]"/>
+    </record>
+    <record id="group_reconcile_period_lock" model="res.groups">
+        <field name="name">Reconciliation Period Lock</field>
+        <field name="category_id" ref="base.module_category_accounting_accounting"/>
+        <field name="implied_ids" eval="[(4, ref('account_reconcile_mcp_support.group_reconcile_approver'))]"/>
+    </record>
+    <record id="rule_reconcile_case_company" model="ir.rule">
+        <field name="name">Reconciliation cases by company</field>
+        <field name="model_id" ref="model_reconcile_case"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_reconcile_tolerance_company" model="ir.rule">
+        <field name="name">Reconciliation tolerances by company</field>
+        <field name="model_id" ref="model_reconcile_tolerance"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_reconcile_close_company" model="ir.rule">
+        <field name="name">Reconciliation checklists by company</field>
+        <field name="model_id" ref="model_reconcile_close_checklist"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_reconcile_import_batch_company" model="ir.rule">
+        <field name="name">Reconciliation import batches by company</field>
+        <field name="model_id" ref="model_reconcile_import_batch"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_reconcile_case_line_company" model="ir.rule">
+        <field name="name">Reconciliation case lines by company</field>
+        <field name="model_id" ref="model_reconcile_case_line"/>
+        <field name="domain_force">[('case_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_reconcile_transition_company" model="ir.rule">
+        <field name="name">Reconciliation transitions by company</field>
+        <field name="model_id" ref="model_reconcile_case_transition"/>
+        <field name="domain_force">[('case_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_reconcile_match_run_company" model="ir.rule">
+        <field name="name">Reconciliation match runs by company</field>
+        <field name="model_id" ref="model_reconcile_match_run"/>
+        <field name="domain_force">[('case_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_reconcile_match_candidate_company" model="ir.rule">
+        <field name="name">Reconciliation candidates by company</field>
+        <field name="model_id" ref="model_reconcile_match_candidate"/>
+        <field name="domain_force">[('run_id.case_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_reconcile_close_line_company" model="ir.rule">
+        <field name="name">Reconciliation close lines by company</field>
+        <field name="model_id" ref="model_reconcile_close_checklist_line"/>
+        <field name="domain_force">[('checklist_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_reconcile_partner_confirmation_company" model="ir.rule">
+        <field name="name">Partner confirmations by company</field>
+        <field name="model_id" ref="model_reconcile_partner_confirmation"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

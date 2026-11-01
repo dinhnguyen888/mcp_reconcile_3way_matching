@@ -1,0 +1,121 @@
+/* =====================================================================
+   AI OCR STATEMENT PREVIEW DIALOG STYLES
+   Split-screen review: Global Balance list (Left) + Document Viewer (Right)
+   Instant Golden Yellow Coordinate Highlight
+===================================================================== */
+
+.ocr-preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
+    font-family: inherit;
+
+    .fs-7 {
+        font-size: 0.85rem;
+    }
+
+    .fs-8 {
+        font-size: 0.75rem;
+    }
+
+    .ocr-preview-header {
+        height: 54px;
+        min-height: 54px;
+        z-index: 10;
+    }
+
+    /* LEFT SIDEBAR: GLOBAL BALANCE LIST */
+    .ocr-preview-sidebar {
+        width: clamp(380px, 32vw, 480px);
+        min-width: 360px;
+        max-width: 500px;
+        flex-shrink: 0;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background-color: #f8f9fa;
+        border-right: 1px solid #dee2e6;
+
+        .ocr-global-balance-header {
+            min-height: 58px;
+            background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+        }
+
+        .ocr-records-list {
+            padding: 10px;
+
+            .ocr-record-card {
+                cursor: pointer;
+                border: 1px solid #e0e0e0;
+                background-color: #ffffff;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                border-left: 4px solid transparent;
+
+                &:hover {
+                    border-color: #90caf9;
+                    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+                }
+
+                &.active-card {
+                    border-color: #1976d2 !important;
+                    border-left: 5px solid #1976d2 !important;
+                    background-color: #f0f7ff !important;
+                    box-shadow: 0 4px 14px rgba(25, 118, 210, 0.16) !important;
+                }
+
+                input, textarea {
+                    background-color: transparent;
+                    transition: background-color 0.2s;
+
+                    &:focus {
+                        background-color: #ffffff !important;
+                        box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2) !important;
+                    }
+                }
+            }
+        }
+    }
+
+    /* RIGHT PANEL: DOCUMENT VIEWER & YELLOW HIGHLIGHT OVERLAY */
+    .ocr-preview-doc-panel {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background-color: #eef2f5;
+
+        .ocr-doc-toolbar {
+            height: 44px;
+            min-height: 44px;
+            z-index: 5;
+        }
+
+        .ocr-doc-viewport {
+            height: calc(100% - 44px);
+            overflow: auto;
+            padding: 12px;
+            background-color: #f1f3f5;
+
+            .ocr-doc-page-container {
+                position: relative;
+                display: block;
+                margin: 0 auto;
+                background-color: #ffffff;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+                border-radius: 4px;
+                transition: width 0.15s ease-out;
+
+                .ocr-page-image {
+                    width: 100%;
+                    height: auto;
+                    display: block;
+                }
+            }
+        }
+    }
+}

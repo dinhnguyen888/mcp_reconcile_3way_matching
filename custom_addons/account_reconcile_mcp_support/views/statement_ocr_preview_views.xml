@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_statement_ocr_preview_form" model="ir.ui.view">
+        <field name="name">account.statement.ocr.preview.form</field>
+        <field name="model">account.statement.ocr.preview</field>
+        <field name="arch" type="xml">
+            <form string="AI OCR Statement Preview &amp; Verification">
+                <header>
+                    <button name="action_confirm" string="Confirm &amp; Import to Journal" type="object" class="btn-success"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="file_name" readonly="1"/>
+                        </h1>
+                        <div class="o_row">
+                            <span class="badge text-bg-primary me-2"><field name="engine" readonly="1"/></span>
+                            <span class="text-muted"><field name="message" readonly="1"/></span>
+                        </div>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="journal_id" readonly="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="attachment_id" readonly="1"/>
+                            <field name="import_batch_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="total_count" readonly="1"/>
+                            <field name="total_credit" readonly="1" widget="monetary"/>
+                            <field name="total_debit" readonly="1" widget="monetary"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Statement Lines" name="lines">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="page_number" optional="show"/>
+                                    <field name="date"/>
+                                    <field name="ref"/>
+                                    <field name="partner_name"/>
+                                    <field name="partner_id" optional="hide"/>
+                                    <field name="account_number" optional="show"/>
+                                    <field name="narration"/>
+                                    <field name="amount" widget="monetary"/>
+                                    <field name="box_ymin" optional="hide"/>
+                                    <field name="box_xmin" optional="hide"/>
+                                    <field name="box_ymax" optional="hide"/>
+                                    <field name="box_xmax" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Raw Text" name="raw">
+                            <field name="raw_text" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Client Action registration for Split-Screen Preview -->
+    <record id="action_statement_ocr_preview_client" model="ir.actions.client">
+        <field name="name">AI OCR Statement Preview</field>
+        <field name="tag">statement_ocr_preview</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

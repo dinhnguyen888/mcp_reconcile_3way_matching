@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_statement_upload_wizard_form" model="ir.ui.view">
+        <field name="name">account.statement.upload.wizard.form</field>
+        <field name="model">account.statement.upload.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Scan Statement or Vendor Bill" js_class="statement_upload_wizard">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="document_type" widget="radio" options="{'horizontal': true}"/>
+                            <field name="journal_id"
+                                   options="{'no_create': True, 'no_open': True}"
+                                   invisible="document_type == 'vendor_bill'"
+                                   required="document_type == 'bank_statement'"/>
+                            <field name="move_id" invisible="1"/>
+                        </group>
+                    </group>
+
+                    <div class="mt-2 mb-3">
+                        <label for="document" class="form-label fw-bold mb-2">Upload File</label>
+                        <p class="text-muted mb-2" invisible="document_type != 'vendor_bill'">
+                            Local AI on this computer scans the invoice. If a vendor bill with the same
+                            number already exists, it will be opened; otherwise a draft bill is filled in.
+                        </p>
+                        <field name="document" filename="file_name" widget="dropzone_binary" class="w-100 d-block"/>
+                        <field name="attachment_id" invisible="1"/>
+                        <field name="import_batch_id" invisible="1"/>
+                        <field name="file_name" invisible="1"/>
+                    </div>
+                </sheet>
+                <footer class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <button string="Add Manual"
+                                type="object"
+                                name="action_open_manual_create"
+                                class="btn btn-link text-decoration-none text-muted"
+                                icon="fa-pencil-square-o"
+                                invisible="document_type == 'vendor_bill'"/>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button string="Process"
+                                type="object"
+                                name="action_process"
+                                class="btn btn-primary px-4"/>
+                        <button string="Cancel"
+                                class="btn btn-secondary px-3"
+                                special="cancel"/>
+                    </div>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_statement_upload_wizard" model="ir.actions.act_window">
+        <field name="name">Import Bank Statement</field>
+        <field name="res_model">account.statement.upload.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_document_type': 'bank_statement'}</field>
+    </record>
+
+    <record id="action_vendor_bill_upload_wizard" model="ir.actions.act_window">
+        <field name="name">Scan Vendor Bill</field>
+        <field name="res_model">account.statement.upload.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_document_type': 'vendor_bill'}</field>
+    </record>
+</odoo>

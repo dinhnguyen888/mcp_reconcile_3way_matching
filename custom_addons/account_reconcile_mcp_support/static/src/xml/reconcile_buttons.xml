@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-inherit="account_reconcile.ReconcileView.Buttons" t-inherit-mode="extension">
+        <xpath expr="//button[@t-on-click='onClickNewButton']" position="replace">
+            <button
+                t-on-click="onClickNewButton"
+                class="btn btn-primary d-inline-flex align-items-center gap-1"
+                t-if="props.archInfo.activeActions.create"
+            >
+                <i class="fa fa-cloud-upload"/>
+                <span>Create</span>
+            </button>
+        </xpath>
+    </t>
+</templates>
